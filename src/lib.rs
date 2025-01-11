@@ -47,9 +47,24 @@ impl<const N: usize> Iterator for SubstrIter<'_, N> {
     }
 }
 
+/// A wrapper helping to display substrings properly
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SubstrWrapper<'a, const N: usize>(pub &'a [char; N]);
+
+#[cfg(feature = "std")]
+impl<const N: usize> std::fmt::Display for SubstrWrapper<'_, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
+        for c in self.0 {
+            f.write_char(*c)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::SubstrIter;
     use test_case::test_case;
 
     fn as_array(input: &str) -> [char; 3] {
@@ -61,10 +76,24 @@ mod tests {
             .unwrap()
     }
 
-    #[test_case("whatever", ["wha", "hat", "ate", "tev", "eve", "ver"]; "with simple characters")]
-    #[test_case("今天我吃饭", ["今天我", "天我吃", "我吃饭"]; "with chinese characters")]
-    fn should_work(word: &str, expected: impl IntoIterator<Item = &'static str>) {
-        let all = Vec::from_iter(SubstrIter::<'_, 3>::from(word));
-        assert_eq!(all, expected.into_iter().map(as_array).collect::<Vec<_>>());
+    #[test_case("whatever", vec!["wha", "hat", "ate", "tev", "eve", "ver"]; "with simple characters")]
+    #[test_case("今天我吃饭", vec!["今天我", "天我吃", "我吃饭"]; "with chinese characters")]
+    fn should_window(word: &str, expected: Vec<&'static str>) {
+        let all = Vec::from_iter(crate::SubstrIter::<'_, 3>::from(word));
+        assert_eq!(
+            all,
+            expected.iter().map(|v| as_array(v)).collect::<Vec<_>>()
+        );
+    }
+
+    #[test_case(vec![['a', 'b', 'c']], vec!["abc"]; "with simple characters")]
+    #[test_case(vec![['今','天','我'], ['天','我','吃'], ['我','吃','饭']], vec!["今天我", "天我吃", "我吃饭"]; "with chinese characters")]
+    #[cfg(feature = "std")]
+    fn should_display(subsets: Vec<[char; 3]>, expected: Vec<&'static str>) {
+        let displayed = subsets
+            .iter()
+            .map(|v| crate::SubstrWrapper(v).to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(displayed, expected);
     }
 }
