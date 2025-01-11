@@ -1,0 +1,14 @@
+[package]
+name = "substr-iterator"
+description = "Substring extractor based on characters without allocation"
+keywords = ["string", "no_alloc"]
+authors = ["Jeremie Drouet <jeremie.drouet@gmail.com>"]
+readme = "readme.md"
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+test-case = { version = "3" }
