@@ -61,14 +61,19 @@ pub type TrigramIter<'a> = SubstrIter<'a, 3>;
 /// let mut iter = substr_iterator::TrigramIter::from("whatever");
 /// ```
 pub struct SubstrIter<'a, const N: usize> {
-    iter: std::str::Chars<'a>,
+    iters: [std::str::Chars<'a>; N],
 }
 
 impl<'a, const N: usize> From<&'a str> for SubstrIter<'a, N> {
     fn from(origin: &'a str) -> Self {
-        Self {
-            iter: origin.chars(),
-        }
+        let iters = core::array::from_fn(|i| {
+            let mut iter = origin.chars();
+            for _ in 0..i {
+                iter.next();
+            }
+            iter
+        });
+        Self { iters }
     }
 }
 
@@ -77,10 +82,8 @@ impl<const N: usize> Iterator for SubstrIter<'_, N> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut res = [' '; N];
-        res[0] = self.iter.next()?;
-        let mut iter = self.iter.clone();
-        for item in res.iter_mut().take(N).skip(1) {
-            *item = iter.next()?;
+        for (idx, item) in res.iter_mut().enumerate().take(N) {
+            *item = self.iters[idx].next()?;
         }
         Some(res)
     }
@@ -175,7 +178,7 @@ impl<const N: usize> std::str::FromStr for SubstrWrapper<N> {
         let mut chars = s.chars();
         let mut res = [' '; N];
         for (idx, item) in res.iter_mut().enumerate() {
-            *item = chars.next().ok_or_else(|| SubstrParserError {
+            *item = chars.next().ok_or(SubstrParserError {
                 expected: N,
                 current: idx,
             })?
@@ -206,7 +209,7 @@ impl<const N: usize> serde::Serialize for SubstrWrapper<N> {
 struct SubstrVisitor<const N: usize>;
 
 #[cfg(feature = "serde")]
-impl<'de, const N: usize> serde::de::Visitor<'de> for SubstrVisitor<N> {
+impl<const N: usize> serde::de::Visitor<'_> for SubstrVisitor<N> {
     type Value = SubstrWrapper<N>;
 
     fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -242,7 +245,7 @@ mod tests {
     #[test_case("whatever", vec!["wha", "hat", "ate", "tev", "eve", "ver"]; "with simple characters")]
     #[test_case("今天我吃饭", vec!["今天我", "天我吃", "我吃饭"]; "with chinese characters")]
     fn should_window(word: &str, expected: Vec<&'static str>) {
-        let all = Vec::from_iter(SubstrIter::<'_, 3>::from(word).map(|v| SubstrWrapper(v)));
+        let all = Vec::from_iter(SubstrIter::<'_, 3>::from(word).map(SubstrWrapper));
         assert_eq!(
             all,
             expected
