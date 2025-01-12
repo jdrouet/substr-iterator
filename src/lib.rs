@@ -61,19 +61,33 @@ pub type TrigramIter<'a> = SubstrIter<'a, 3>;
 /// let mut iter = substr_iterator::TrigramIter::from("whatever");
 /// ```
 pub struct SubstrIter<'a, const N: usize> {
-    iters: [std::str::Chars<'a>; N],
+    iter: std::str::Chars<'a>,
+    cache: [char; N],
+    index: usize,
 }
 
 impl<'a, const N: usize> From<&'a str> for SubstrIter<'a, N> {
     fn from(origin: &'a str) -> Self {
-        let iters = core::array::from_fn(|i| {
-            let mut iter = origin.chars();
-            for _ in 0..i {
-                iter.next();
-            }
-            iter
-        });
-        Self { iters }
+        let mut iter = origin.chars();
+        let mut cache = ['\0'; N];
+        for (idx, v) in (&mut iter).take(N - 1).enumerate() {
+            cache[idx] = v;
+        }
+        Self {
+            iter,
+            cache,
+            index: 0,
+        }
+    }
+}
+
+impl<const N: usize> SubstrIter<'_, N> {
+    fn get(&self, offset: usize) -> char {
+        self.cache[(self.index + offset) % N]
+    }
+
+    fn push(&mut self, value: char) {
+        self.cache[(self.index + N - 1) % N] = value;
     }
 }
 
@@ -81,10 +95,10 @@ impl<const N: usize> Iterator for SubstrIter<'_, N> {
     type Item = Substr<N>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut res = [' '; N];
-        for (idx, item) in res.iter_mut().enumerate().take(N) {
-            *item = self.iters[idx].next()?;
-        }
+        let value = self.iter.next()?;
+        self.push(value);
+        let res: [char; N] = core::array::from_fn(|i| self.get(i));
+        self.index += 1;
         Some(res)
     }
 }
