@@ -5,7 +5,7 @@ keywords = ["string", "no_alloc"]
 authors = ["Jeremie Drouet <jeremie.drouet@gmail.com>"]
 readme = "readme.md"
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [features]
